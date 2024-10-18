@@ -1,4 +1,5 @@
 import paho.mqtt.client as mqtt
+import ssl
 from on_connect import on_connect
 from on_message import on_message
 from on_publish import on_publish
@@ -6,8 +7,13 @@ from on_subscribe import on_subscribe
 from on_disconnect import on_disconnect
 
 # Create a client instance
-client = mqtt.Client(protocol=mqtt.MQTTv5)
-
+version = '5'
+mytransport = 'websockets'
+client = mqtt.Client()
+if version == '5':
+    client = mqtt.Client(client_id="myPy",
+                         transport=mytransport,
+                         protocol=mqtt.MQTTv5)
 
 client.on_connect = on_connect
 client.on_message = on_message
