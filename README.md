@@ -1,14 +1,12 @@
 Ciobanu Constantin-Marcu 1307b
 MQTT5 CLIENT. APLICATIE DEMONSTRATIVA
-
-	MQTT este un protocol folosit in lumea iot permitand transportul de informatie rapid, sigur si efficient. Acest protocol permite clientilor sa se conecteze la un broker(in acest caz am folosit hivemq) folosing o anumita tehnica de comunicare prin packete de tip publish-subscribe. Un broker este un serviciu cloud care permite clientilor sa se conecteze la acesta si sa acceseze anumite topice la care sunt conectati alti end-clients.
-      
-
-	Folosim modulul BSD socket pentru a efectua conectarea print tcp/ip la broker-ul nostrum in functia main.
+MQTT este un protocol folosit in lumea iot permitand transportul de informatie rapid, sigur si efficient. Acest protocol permite clientilor sa se conecteze la un broker(in acest caz am folosit hivemq) folosing o anumita tehnica de comunicare prin packete de tip publish-subscribe. Un broker este un serviciu cloud care permite clientilor sa se conecteze la acesta si sa acceseze anumite topice la care sunt conectati alti end-clients
+Folosim modulul BSD socket pentru a efectua conectarea print tcp/ip la broker-ul nostrum in functia main.
 	Dupa conectarea la broker vom trimite toate pachetele pana la intalnirea unei erori cu ajutorul functiei blocante sendall. 
 	Pachetul trimis la broker este returnat din functia ce construieste pachetul de conectare.
 	Pachetul de conectare connect_pachet trebuie sa fie primul pachet trimis de client spre server in asteparea unui connack (connect-connack relationship). 
 	Asadar, pachetul de conectare trebuie sa fie format din :
+
 Fixed Header – 
 •	continand pe 4 biti tipul de pachet,lungimea ramasa
 Variable header – 
