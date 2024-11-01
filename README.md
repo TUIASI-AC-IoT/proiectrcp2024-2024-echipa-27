@@ -44,6 +44,8 @@ Pachetul de conectare, numit **connect_packet**, trebuie să fie primul pachet t
 ---
 
 ## Structura Pachetului de Conectare
+![Pachet de Conectare](https://github.com/TUIASI-AC-IoT/proiectrcp2024-2024-echipa-27/blob/main/img/connect_packet.png)
+
 
 Pentru a crea un pachet de conectare valid, acesta trebuie să includă următoarele secțiuni:
 
