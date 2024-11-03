@@ -1,4 +1,4 @@
-![image](https://github.com/user-attachments/assets/a0c2d0b5-9f2f-4aeb-aaef-e0357ae03c0d)# MQTT5 CLIENT - APLICAȚIE DEMONSTRATIVĂ
+# MQTT5 CLIENT - APLICAȚIE DEMONSTRATIVĂ
 
 **Autor:** Ciobanu Constantin-Marcu  
 **Grupă:** 1307b  
