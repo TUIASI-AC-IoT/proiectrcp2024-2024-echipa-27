@@ -46,44 +46,143 @@ Pachetul de conectare, numit **connect_packet**, trebuie să fie primul pachet t
 ## Structura Pachetului de Conectare
 ![Pachet de Conectare](https://github.com/TUIASI-AC-IoT/proiectrcp2024-2024-echipa-27/blob/main/img/connect_packet.png)
 
+Primul pachet pe care clientul il trimite trebuie sa fie unul de tip CONNECT ce include mai multe aspecte:
 
-Pentru a crea un pachet de conectare valid, acesta trebuie să includă următoarele secțiuni:
+## Antet Fix (Fixed Header)
 
-### Fixed Header
+În antetul fix al pachetului `CONNECT`, câmpul **Packet Type** (Tipul Pachetului), situat în cei 4 biți superiori ai primului octet, trebuie să fie setat la 1 (`0b0001`), iar cei 4 biți inferiori ai primului octet trebuie să fie toți 0.
 
-- **Descriere**: Contine informații de bază despre pachet.
-- **Conținut**:
-  - Tipul de pachet (pe 4 biți)
-  - Lungimea rămasă
+Astfel, valoarea primului octet al pachetului `CONNECT` trebuie să fie `0x10`. Putem utiliza această valoare pentru a determina dacă un pachet este de tip `CONNECT`.
 
-### Variable Header
+## Antet Variabil (Variable Header)
 
-- **Descriere**: Informații suplimentare despre conexiune.
-- **Conținut**:
-  - Numele protocolului (de exemplu, `MQTT`)
-  - Versiunea protocolului
-  - Metodele de conectare (`connect_flags`), care specifică cerințele clientului de la server
-  - Timpul de menținere a conexiunii (keep_alive) în secunde
+Antetul variabil al pachetului `CONNECT` conține următoarele câmpuri, în ordine:
 
-### Payload
+### Numele Protocolului (Protocol Name)
 
-- **Descriere**: Date de autentificare și identificare.
-- **Conținut**:
-  - Client ID (identificatorul unic al clientului)
-  - Username (opțional)
-  - Parolă (opțional)
+- Un șir de caractere, utilizat pentru a indica numele protocolului.
+- În MQTT, primii doi octeți ai șirului codificat în UTF-8 sunt folosiți pentru a indica lungimea datelor efective de caractere care urmează.
+- Numele protocolului este fixat ca `MQTT` în versiunile MQTT 3.1.1 și MQTT 5.0, astfel încât conținutul complet corespunzător în octeți hexazecimali este `00 04 4D 51 54 54`, unde `4D 51 54 54` reprezintă valorile ASCII ale șirului `MQTT`.
+- 
+### Versiunea Protocolului (Protocol Version)
 
-> [Detalii suplimentare despre structura pachetelor CONNECT-CONNACK în MQTT5](https://emqx.medium.com/mqtt-5-0-packet-explained-01-connect-connack-f941e5c0c61b)
+- Un întreg unsigned de un octet, utilizat pentru a indica versiunea protocolului.
+- Valorile posibile sunt:
+  - `3` pentru MQTT 3.1
+  - `4` pentru MQTT 3.1.1
+  - `5` pentru MQTT 5.0
+
+### Flaguri de Conectare (Connect Flags)
+
+- Un octet care conține mai mulți biți de flaguri, utilizate pentru a indica comportamentul conexiunii sau dacă anumite câmpuri există în Payload.
+- Structura flagurilor:
+  - **User Name Flag**: Indică dacă Payload-ul conține Username.
+  - **Password Flag**: Indică dacă Payload-ul conține Password.
+  - **Will Retain**: Indică dacă mesajul "Will" este un mesaj reținut.
+  - **Will QoS**: Indică nivelul QoS al mesajului "Will".
+  - **Will Flag**: Indică dacă Payload-ul conține câmpuri relevante pentru mesajul "Will".
+  - **Clean Start**: Indică dacă conexiunea curentă este o sesiune nouă sau continuarea uneia existente, determinând dacă serverul va crea direct o sesiune nouă sau va încerca să reutilizeze una existentă.
+  - **Reserved**: Acesta este un bit rezervat, valoarea sa trebuie să fie 0.
+
+### Keep Alive
+
+- Un întreg nesemnat de doi octeți, utilizat pentru a indica intervalul maxim de timp între două pachete de control consecutive trimise de client.
+
+### Proprietăți (Properties)
+
+Tabelul de mai jos listează toate proprietățile disponibile ale pachetului `CONNECT`:
+
+| Identificator | Nume Proprietate              | Tip                    |
+|---------------|-------------------------------|------------------------|
+| `0x11`        | Session Expiry Interval       | Întreg pe 4 octeți     |
+| `0x21`        | Receive Maximum               | Întreg pe 2 octeți     |
+| `0x27`        | Maximum Packet Size           | Întreg pe 4 octeți     |
+| `0x22`        | Topic Alias Maximum           | Întreg pe 2 octeți     |
+| `0x19`        | Request Response Information  | Octet                  |
+| `0x17`        | Request Problem Information   | Octet                  |
+| `0x26`        | User Property                 | Pereche de șiruri UTF-8|
+| `0x15`        | Authentication Method         | Șir codificat UTF-8    |
+| `0x16`        | Authentication Data           | Date binare            |
+
+## Payload
+
+În Payload-ul pachetului `CONNECT`, în afară de **Client ID**, toate celelalte câmpuri sunt opționale. Existența lor depinde de valoarea flagurilor corespunzătoare din Connect Flags ale antetului variabil. Cu toate acestea, dacă aceste câmpuri există, ele trebuie să apară în următoarea ordine:
+
+1. **Client ID**
+2. **Will Properties**
+3. **Will Topic**
+4. **Will Payload**
+5. **User Name**
+6. **Password**
 
 ---
 
 ## Comunicarea cu Brokerul
 
-După trimiterea pachetului de conectare către broker, clientul folosește funcția blocantă `recv` pentru a aștepta un răspuns de la broker, în mod specific un pachet de 4 octeți. Acest răspuns este necesar pentru a confirma dacă brokerul a acceptat conexiunea.
+După trimiterea pachetului de conectare către broker, clientul folosește funcția blocantă `recv` pentru a aștepta un răspuns de la broker, în mod specific un pachet de 4 octeți. Acest răspuns este necesar pentru a confirma dacă brokerul a acceptat conexiunea. Acest raspuns este denumit si un packet de tip CONNACK ce contine mai multe aspecte de confirmarea a conexiunii cu broker-ul, acesta are urmatoarea structura: 
+
+## Antet Fix (Fixed Header)
+
+În antetul fix al pachetului `CONNACK`, valoarea celor 4 biți superiori ai primului octet este `2` (`0b0010`), ceea ce indică faptul că acesta este un pachet de tip `CONNACK`.
+
+## Antet Variabil (Variable Header)
+
+Antetul variabil al pachetului `CONNACK` conține următoarele câmpuri, în această ordine:
+
+### Connect Acknowledge Flags (Flaguri de Confirmare a Conexiunii)
+
+Aceste flaguri indică starea conexiunii:
+
+- **Reserved** (Bit 7 - 1): Biți rezervați, trebuie setați la 0.
+- **Session Present** (Bit 0): Arată dacă serverul folosește o sesiune existentă pentru a relua comunicarea cu clientul. `Session Present` poate fi `1` doar dacă clientul a setat `Clean Start` la `0` în cererea de conectare (pachetul `CONNECT`).
+
+### Reason Code 
+
+Codul-motiv explică rezultatul conexiunii:
+
+| Valoare | Nume Cod Motiv           | Descriere                                                                                          |
+|---------|---------------------------|----------------------------------------------------------------------------------------------------|
+| `0x00`  | Success                   | Conexiunea a fost acceptată.                                                                       |
+| `0x81`  | Malformed Packet          | Serverul nu poate analiza corect pachetul `CONNECT` (ex.: bitul rezervat nu este setat corect).    |
+| `0x82`  | Protocol Error            | Pachetul `CONNECT` nu respectă specificațiile protocolului.                                        |
+| `0x84`  | Unsupported Protocol Version | Serverul nu suportă versiunea de protocol solicitată de client.                                |
+| `0x85`  | Client Identifier not valid | ID-ul clientului este valid, dar nu este acceptat de server (ex.: depășește limita de lungime). |
+| `0x86`  | Bad User Name or Password | Conexiunea a fost refuzată din cauza numelui de utilizator sau parolei incorecte.                  |
+| `0x95`  | Packet too large          | Pachetul `CONNECT` depășește dimensiunea maximă permisă de server.                                |
+| `0x8A`  | Banned                    | Clientul este interzis (ex.: adăugat pe lista neagră de către un administrator sau din alte motive). |
+
+### Proprietăți (Properties)
+
+Lista de proprietăți din `CONNACK` poate include o serie de setări și informații despre sesiune:
+
+| Identificator | Nume Proprietate                | Tip                    |
+|---------------|---------------------------------|------------------------|
+| `0x11`        | Session Expiry Interval         | Întreg pe 4 octeți     |
+| `0x21`        | Receive Maximum                 | Întreg pe 2 octeți     |
+| `0x24`        | Maximum QoS                     | Octet                  |
+| `0x25`        | Retain Available                | Octet                  |
+| `0x27`        | Maximum Packet Size             | Întreg pe 4 octeți     |
+| `0x12`        | Assigned Client Identifier      | Șir codificat UTF-8    |
+| `0x22`        | Topic Alias Maximum             | Întreg pe 2 octeți     |
+| `0x1F`        | Reason String                   | Șir codificat UTF-8    |
+| `0x26`        | User Property                   | Pereche de șiruri UTF-8|
+| `0x28`        | Wildcard Subscription Available | Octet                  |
+| `0x29`        | Subscription Identifier Available | Octet                |
+| `0x2A`        | Shared Subscription Available   | Octet                  |
+| `0x13`        | Server Keep Alive               | Întreg pe 2 octeți     |
+| `0x1A`        | Response Information            | Șir codificat UTF-8    |
+| `0x1C`        | Server Reference                | Șir codificat UTF-8    |
+| `0x15`        | Authentication Method           | Șir codificat UTF-8    |
+| `0x16`        | Authentication Data             | Date binare            |
+
+## Payload
+
+Pachetul `CONNACK` **nu are un Payload**. Toate informațiile necesare despre conexiune sunt transmise prin antetul fix și antetul variabil.
 
 ### Validarea Răspunsului `CONNACK`
 
 După ce pachetul este primit de la broker, aplicăm o deplasare la dreapta asupra mesajului pentru a extrage primii 4 biți. Acești biți ne permit să confirmăm dacă pachetul primit este de tip `CONNACK`. Un pachet `CONNACK` validează faptul că brokerul a acceptat conexiunea și că clientul este acum conectat cu succes la server.
+![Packet Connack](https://github.com/TUIASI-AC-IoT/proiectrcp2024-2024-echipa-27/blob/main/img/connack.png)
 
 ---
 
