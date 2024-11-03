@@ -375,6 +375,57 @@ Brokerul trimite un pachet `UNSUBACK` către client pentru a confirma că cerere
 
 
 Acest model de comunicare face din MQTT o alegere populară pentru aplicațiile IoT, unde multe dispozitive au nevoie să schimbe date în mod eficient și organizat.
+---
+# Autentificarea cu Username și Parolă în MQTT
+
+Protocolul MQTT permite autentificarea clientului prin intermediul unui **username** și a unei **parole**, trimițând aceste credențiale în pachetul `CONNECT`. Autentificarea și de-autentificarea sunt gestionate prin pachetele `CONNECT`, `CONNACK`, și `DISCONNECT`.
+
+## 1. Trimiterea Credențialelor în Pachetul `CONNECT`
+
+Autentificarea începe atunci când clientul trimite un pachet `CONNECT` către broker, conținând opțional un username și o parolă pentru identificare.
+
+- **Fixed Header**: Include tipul de pachet (`CONNECT`).
+- **Variable Header**:
+  - **Connect Flags**: Conține biți de flag care indică prezența unui username și/sau parolă(bitul 7 si 6 indica prezenta unui request d econectare cu user si parola).
+  - **Keep Alive**: Intervalul de timp între două pachete consecutive trimise de client pentru a menține conexiunea activă.
+- **Payload**:
+  - **Client ID**: Un identificator unic pentru client.
+  - **Username** (opțional): Numele de utilizator folosit pentru autentificare.
+  - **Password** (opțional): Parola asociată cu numele de utilizator.
+
+## 2. Brokerul Verifică Credențialele
+
+După ce brokerul primește pachetul `CONNECT`, acesta verifică username-ul și parola trimise de client. 
+
+- **Dacă autentificarea reușește**: Brokerul acceptă conexiunea și trimite un pachet `CONNACK` cu un cod de succes (`0x00`). Clientul este acum conectat și poate accesa topicurile și publica mesaje conform permisiunilor asociate username-ului.
+- **Dacă autentificarea eșuează**: Brokerul respinge conexiunea și trimite un pachet `CONNACK` cu un cod de eroare, cum ar fi:
+  - `0x84` – Unsupported Protocol Version: Versiunea de protocol nu este acceptată.
+  - `0x85` – Client Identifier not valid: ID-ul clientului nu este valid.
+  - `0x86` – Bad User Name or Password: Username-ul sau parola sunt incorecte.
+  - `0x87` – Not Authorized: Clientul nu este autorizat să se conecteze.
+
+## 3. Trimiterea Răspunsului `CONNACK` de la Broker
+
+Brokerul răspunde cu un pachet `CONNACK` pentru a indica rezultatul autentificării:
+
+- **CONNACK cu cod 0x00**: Conexiunea este acceptată, autentificarea a reușit, și clientul este acum conectat.
+- **CONNACK cu cod de eroare**: Autentificarea a eșuat și conexiunea este respinsă.
+
+# De-autentificarea (Deconectarea) Clientului
+- **Autentificare eșuată**: Dacă username-ul și parola sunt incorecte, brokerul trimite un `CONNACK` cu un cod de eroare, iar clientul nu este conectat. Conexiunea este închisă imediat după acest răspuns.
+- **Expirarea sesiunii**: Dacă brokerul detectează o inactivitate mai lungă decât intervalul Keep Alive stabilit de client, acesta poate deconecta clientul.
+- **Deconectare voluntară**: Clientul poate trimite un pachet `DISCONNECT` pentru a închide în mod corespunzător conexiunea.
+
+## Pachetul `DISCONNECT`
+
+Când un client dorește să se deconecteze, acesta trimite un pachet `DISCONNECT` cu cod  către broker:
+
+- **Fixed Header**: Specifică tipul de pachet (`DISCONNECT`).
+- **Variable Header** (în MQTT 5): Poate conține un reason code, pentru a explica de ce clientul a ales să se deconecteze.
+
+În cazul în care brokerul închide conexiunea clientului din cauza unei autentificări eșuate, clientul este deconectat fără a trimite un `DISCONNECT`.
+
+
 
 ## Bibliografie
 
@@ -388,9 +439,3 @@ Acest model de comunicare face din MQTT o alegere populară pentru aplicațiile 
 6. **EMQX Team**. ["MQTT Control Packets: A Beginner's Guide"](https://www.emqx.com/en/blog/introduction-to-mqtt-control-packets). EMQX Blog, 8 iulie 2023.
 
 ---
-
----
-
-## Concluzie
-
-Prin această aplicație demonstrativă, am ilustrat procesul de conectare al unui client MQTT5 la un broker HiveMQ, utilizând BSD sockets. Structura pachetelor și mecanismul de confirmare al conexiunii sunt esențiale pentru o comunicare eficientă în rețelele IoT. Această implementare oferă o bază solidă pentru dezvoltarea aplicațiilor IoT care necesită transfer rapid și sigur de date.
