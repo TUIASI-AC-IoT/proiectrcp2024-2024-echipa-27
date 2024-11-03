@@ -86,7 +86,31 @@ Antetul variabil al pachetului `CONNECT` conține următoarele câmpuri, în ord
 
 ### Keep Alive
 
-- Un întreg nesemnat de doi octeți, utilizat pentru a indica intervalul maxim de timp între două pachete de control consecutive trimise de client.
+- **Intervalul Keep Alive** este o valoare specificată în secunde, setată de client în pachetul de connect. Aceasta reprezintă intervalul maxim de timp dintre două mesaje trimise de client către broker.
+- Dacă clientul nu trimite niciun mesaj în acest interval, brokerul presupune că clientul s-a deconectat.
+
+## Mesaje Ping pentru Keep Alive
+
+Pentru a menține conexiunea activă și a respecta intervalul de Keep Alive, clientul poate trimite un mesaj special numit **PINGREQ** (Ping Request) atunci când nu are alte date de transmis. Astfel:
+
+1. **Clientul trimite PINGREQ**: Dacă nu are alte mesaje de transmis, clientul trimite un mesaj `PINGREQ` către broker pentru a menține conexiunea.
+2. **Brokerul răspunde cu PINGRESP**: Brokerul primește `PINGREQ` și răspunde imediat cu un pachet `PINGRESP` (Ping Response) pentru a confirma conexiunea activă.
+
+## Ce se Întâmplă dacă Intervalul de Keep Alive este Depășit
+
+Dacă brokerul nu primește niciun mesaj (fie el `PINGREQ` sau alt mesaj MQTT) de la client în intervalul de Keep Alive specificat, acesta va considera că clientul s-a deconectat și va închide conexiunea. Acest lucru este util în situațiile în care un client se deconectează neintenționat, astfel încât brokerul poate curăța conexiunea și resursele asociate.
+
+## Exemplu de Funcționare
+
+1. **Setarea Intervalului Keep Alive**: Clientul stabilește un interval de Keep Alive de 60 de secunde în pachetul `CONNECT` la momentul conectării la broker.
+2. **Transmiterea PINGREQ**: Dacă clientul nu trimite alte mesaje în primele 60 de secunde, acesta va trimite un mesaj `PINGREQ` către broker pentru a indica că este încă activ.
+3. **Răspunsul brokerului**: Brokerul primește `PINGREQ` și răspunde cu un mesaj `PINGRESP`, confirmând că a primit semnalul de la client.
+4. **Detectarea unei Deconectări Accidentale**: Dacă brokerul nu primește niciun mesaj de la client (inclusiv `PINGREQ`) într-un interval de 60 de secunde, acesta va presupune că clientul s-a deconectat și va închide conexiunea.
+
+## Beneficiile Mecanismului Keep Alive
+
+- **Detectarea Rapidă a Deconectărilor**: Brokerul poate identifica rapid clienții deconectați și poate elibera resursele asociate acestora.
+- **Menținerea Conexiunii Active**: Clientul poate menține o conexiune stabilă și activă chiar dacă nu transmite date frecvent.
 
 ### Proprietăți (Properties)
 
