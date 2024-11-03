@@ -15,18 +15,9 @@ Un broker MQTT este un serviciu cloud care facilitează comunicarea între clien
 
 ## Descrierea Aplicatiei
 
-Această aplicație demonstrativă ilustrează un **client MQTT5** care se conectează la brokerul HiveMQ și interacționează cu acesta folosind pachete de date structurate.
+Această aplicație demonstrativă ilustrează un **client MQTT5** care se conectează la brokerul HiveMQ și interacționează cu acesta folosind pachete diferite pachete de date.
 
 ---
-
-## Tehnologie Utilizată
-
-- **Broker**: HiveMQ
-- **Protocol de Transport**: TCP/IP
-- **Librărie de Comunicație**: BSD Sockets
-
----
-
 ## Implementare
 
 ### 1. Conectarea la Broker
@@ -56,7 +47,7 @@ Astfel, valoarea primului octet al pachetului `CONNECT` trebuie să fie `0x10`. 
 
 ## Antet Variabil (Variable Header)
 
-Antetul variabil al pachetului `CONNECT` conține următoarele câmpuri, în ordine:
+Antetul variabil al pachetului `CONNECT` conține următoarele campuri:
 
 ### Numele Protocolului (Protocol Name)
 
@@ -299,8 +290,89 @@ Pachetul `PUBACK` este folosit ca răspuns pentru un mesaj `PUBLISH` de tip QoS 
 - **Payload**:
   - În MQTT 5, poate conține un cod de motiv pentru a specifica succesul sau eșecul confirmării.
 
+# Nivelurile de QoS în MQTT5
 
+În MQTT, **QoS** (Quality of Service) reprezintă nivelul de fiabilitate în livrarea mesajelor între client și broker. Există trei niveluri de QoS în MQTT, fiecare oferind un grad diferit de garanție a livrării mesajelor.
+
+## Nivelurile de QoS
+
+### QoS 0: "At most once" (Cel mult o dată)
+- **Descriere**: Mesajul este trimis o singură dată de către client și broker, fără confirmare.
+- **Fiabilitate**: Nu există garanții că mesajul va ajunge la destinație. Dacă există o întrerupere în rețea, mesajul ar putea fi pierdut.
+- **Utilizare tipică**: QoS 0 este potrivit pentru aplicațiile în care pierderea ocazională a datelor nu este critică, cum ar fi actualizările de telemetrie frecvente (ex: date de temperatură) care se reîmprospătează rapid.
+
+### QoS 1: "At least once" (Cel puțin o dată)
+- **Descriere**: Mesajul este garantat să ajungă la destinație cel puțin o dată. Clientul sau brokerul stochează mesajul și îl retransmite până primește o confirmare de la destinatar (`PUBACK`).
+- **Fiabilitate**: Asigură livrarea mesajului, dar poate apărea de mai multe ori la destinație (dacă retransmisia se face înainte de primirea confirmării).
+- **Utilizare tipică**: QoS 1 este ideal pentru situațiile în care este important ca mesajele să ajungă, dar nu contează dacă sunt livrate de mai multe ori, cum ar fi alertele de securitate sau notificările critice.
+
+### QoS 2: "Exactly once" (Exact o dată)
+- **Descriere**: Cel mai înalt nivel de fiabilitate, garantează că mesajul ajunge la destinație o singură dată. Procesul de livrare implică un mecanism de confirmare în patru pași (inclusiv `PUBREC` și `PUBREL`) pentru a evita duplicatele.
+- **Fiabilitate**: Asigură livrarea unică a mesajului, fără duplicate, și este cel mai costisitor în termeni de timp și resurse.
+- **Utilizare tipică**: QoS 2 este utilizat în aplicații critice în care pierderea sau duplicarea mesajelor este inacceptabilă, cum ar fi în tranzacțiile financiare sau comenzi industriale esențiale.
+
+## Rezumatul Nivelurilor QoS
+
+| Nivel QoS  | Descriere               | Garanția livrării                | Exemple de utilizare                       |
+|------------|-------------------------|----------------------------------|--------------------------------------------|
+| **QoS 0**  | "At most once"          | Fără garanție                    | Date de telemetrie, valori de senzori      |
+| **QoS 1**  | "At least once"         | Min. o dată, pot fi duplicate    | Alerte, notificări                         |
+| **QoS 2**  | "Exactly once"          | Exact o dată, fără duplicate     | Tranzacții financiare, comenzi industriale |
+
+## Cum Funcționează Mecanismul QoS
+
+1. **QoS 0**: Clientul sau brokerul trimite mesajul o singură dată, fără a aștepta confirmare.
+2. **QoS 1**: Clientul/brokerul așteaptă confirmare (`PUBACK`) de la destinatar. Dacă nu o primește, mesajul este retransmis până la confirmare.
+3. **QoS 2**: Este utilizat un protocol cu mai multe etape pentru a evita duplicatele:
+   - Mesajul este trimis, destinatarul răspunde cu `PUBREC` (Publish Received) pentru a confirma primirea.
+   - Expeditorul trimite `PUBREL` (Publish Release) pentru a indica primirea confirmării.
+   - Destinatarul finalizează procesul cu `PUBCOMP` (Publish Complete), confirmând că mesajul a fost primit și procesat fără duplicate.
+- **QoS 0**: Cel mai rapid și mai eficient, potrivit pentru date care nu sunt critice.
+- **QoS 1**: Asigură livrarea mesajelor, dar poate duce la duplicate. Eficient pentru majoritatea aplicațiilor de IoT.
+- **QoS 2**: Consumă mai multe resurse, dar este indispensabil pentru date critice unde nu sunt permise erori.
+
+QoS este o componentă importantă în MQTT, care permite personalizarea fiabilității comunicațiilor. În funcție de aplicație și de importanța mesajelor, dezvoltatorii pot alege nivelul de QoS potrivit pentru a optimiza performanța și fiabilitatea.
 ---
+# Mecanismul `UNSUBSCRIBE` în MQTT5
+
+În MQTT5, pachetul `UNSUBSCRIBE` este utilizat de client pentru a se dezabona la unul sau mai multe topicuri. Acest lucru oprește brokerul de la trimiterea mesajelor către client pe acele topicuri. După ce brokerul procesează cererea, acesta trimite un pachet de confirmare `UNSUBACK`.
+
+## Cum Funcționează `UNSUBSCRIBE`
+
+### 1. Trimiterea Pachetului `UNSUBSCRIBE` de Către Client
+Clientul care dorește să nu mai primească mesaje pe unul sau mai multe topicuri trimite un pachet `UNSUBSCRIBE` către broker.
+
+- **Fixed Header**: Specifică tipul de pachet (`UNSUBSCRIBE`).
+- **Variable Header**:
+  - **Packet Identifier**: Un identificator unic de pachet, folosit pentru a corela cererea de `UNSUBSCRIBE` cu răspunsul `UNSUBACK`.
+- **Payload**:
+  - Conține lista topicurilor de la care clientul vrea să se dezaboneze.
+
+### 2. Procesarea Cererii `UNSUBSCRIBE` de Către Broker
+Brokerul primește pachetul `UNSUBSCRIBE`, verifică lista de topicuri și elimină clientul din lista de abonați pentru fiecare topic specificat. După această procesare, clientul nu va mai primi mesaje pe acele topicuri.
+
+### 3. Răspunsul `UNSUBACK` de la Broker
+Brokerul trimite un pachet `UNSUBACK` către client pentru a confirma că cererea de dezabonare a fost procesată cu succes.
+
+- **Fixed Header**: Specifică tipul de pachet (`UNSUBACK`).
+- **Variable Header**:
+  - **Packet Identifier**: Același identificator ca în pachetul `UNSUBSCRIBE`, pentru a corela răspunsul cu cererea originală.
+- **Payload** (în MQTT 5): Conține coduri de motiv pentru a indica succesul sau eșecul dezabonării pentru fiecare topic.
+
+### Coduri de Motiv în `UNSUBACK` (MQTT 5)
+
+| Cod de Motiv | Descriere                         |
+|--------------|-----------------------------------|
+| `0x00`       | Succes - Dezabonarea a reușit.   |
+| `0x11`       | Topicul nu există pe broker.     |
+| `0x80`       | Dezabonarea a eșuat (eroare).    |
+
+## Fluxul  `UNSUBSCRIBE`
+
+1. **Clientul trimite `UNSUBSCRIBE`**: Clientul trimite un pachet `UNSUBSCRIBE` către broker, specificând topicurile de la care dorește să se dezaboneze.
+2. **Brokerul procesează cererea**: Brokerul elimină clientul din lista de abonați pentru acele topicuri.
+3. **Brokerul trimite `UNSUBACK`**: Brokerul trimite un pachet `UNSUBACK` către client, confirmând dezabonarea.
+
 
 Acest model de comunicare face din MQTT o alegere populară pentru aplicațiile IoT, unde multe dispozitive au nevoie să schimbe date în mod eficient și organizat.
 
@@ -309,6 +381,13 @@ Acest model de comunicare face din MQTT o alegere populară pentru aplicațiile 
 1. [MQTT 5.0 Packet Explained - Connect & CONNACK](https://emqx.medium.com/mqtt-5-0-packet-explained-01-connect-connack-f941e5c0c61b)
 2. [Documentația oficială MQTT 5.0](https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html)
 3. [MQTT 5.0 Packet Explained - Connect & CONNACK (EMQX)](https://emqx.medium.com/mqtt-5-0-packet-explained-01-connect-connack-f941e5c0c61b)
+4. ["MQTT 5.0 Packet Explained 03: SUBSCRIBE & UNSUBSCRIBE"](https://www.emqx.com/en/blog/mqtt-5-0-control-packets-03-subscribe-unsubscribe). EMQX Blog, 15 septembrie 2023.
+
+5. ["MQTT 5.0 Packet Explained 02: PUBLISH & PUBACK"](https://www.emqx.com/en/blog/mqtt-5-0-control-packets-02-publish-puback). EMQX Blog, 15 septembrie 2023.
+
+6. **EMQX Team**. ["MQTT Control Packets: A Beginner's Guide"](https://www.emqx.com/en/blog/introduction-to-mqtt-control-packets). EMQX Blog, 8 iulie 2023.
+
+---
 
 ---
 
