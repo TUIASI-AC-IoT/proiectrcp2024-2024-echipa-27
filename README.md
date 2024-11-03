@@ -1,4 +1,4 @@
-# MQTT5 CLIENT - APLICAȚIE DEMONSTRATIVĂ
+![image](https://github.com/user-attachments/assets/a0c2d0b5-9f2f-4aeb-aaef-e0357ae03c0d)# MQTT5 CLIENT - APLICAȚIE DEMONSTRATIVĂ
 
 **Autor:** Ciobanu Constantin-Marcu  
 **Grupă:** 1307b  
@@ -185,6 +185,100 @@ După ce pachetul este primit de la broker, aplicăm o deplasare la dreapta asup
 ![Packet Connack](https://github.com/TUIASI-AC-IoT/proiectrcp2024-2024-echipa-27/blob/main/img/connack.png)
 
 ---
+# Modelul de Comunicare Publish-Subscribe în MQTT5
+
+Într-o rețea MQTT5, clienții comunică printr-n model  **publish-subscribe**. Acest model implică două roluri principale pentru clienți: 
+
+- **Publisher (Publicator)**: Clientul care trimite (publică) informația.
+- **Subscriber (Abonat)**: Clientul care primește informația publicată.
+
+În acest model, mesajele sunt transmise prin intermediul unui canal de comunicare numit **topic**. 
+
+## Exemplu Practic
+
+Să luăm exemplul unui senzor de temperatură și al unui smartphone care primeste datele de temperatura:
+
+1. **Publicarea (Publish)**: Senzorul de temperatură, care trimite datele, publică informația pe un **topic** specific, de exemplu, `senzor/temperatura/living`. Acest topic funcționează ca un canal prin care sunt transmise datele.
+
+2. **Abonarea (Subscribe)**: Smartphone-ul utilizatorului este abonat (subscribed) la acest topic `senzor/temperatura/living`. Fiind abonat la acest topic, smartphone-ul primește automat toate mesajele publicate de senzorul de temperatură pe acest canal.
+
+3. **Recepționarea Mesajelor**: De fiecare dată când senzorul publică un nou mesaj despre temperatura din cameră, smartphone-ul, fiind abonat la topic, va primi aceste date, fără să fie nevoie de o conexiune directă între cele două dispozitive.
+
+## Rolul Brokerului în Publish-Subscribe
+
+În modelul publish-subscribe din MQTT5, broker-ul este intermediarul ce preia aceste mesaje. Acesta gestionează comunicarea dintre clienți, astfel:
+
+- Brokerul primește mesajele publicate de la publisher (senzorul).
+- Brokerul le distribuie către toți clienții abonați la acel topic (în acest caz, smartphone-ul).
+
+## Topicuri în MQTT5
+
+Un **topic** este un canal logic de comunicare care permite organizarea mesajelor. În MQTT, topicurile pot fi ierarhice și sunt structurate cu ajutorul slash-urilor `/`. În exemplul de mai sus, `senzor/temperatura/living` este un topic specific pentru temperatura din living.
+
+MQTT permite, de asemenea, utilizarea **wildcard-urilor** pentru a facilita abonarea la mai multe topicuri simultan:
+- `+` (plus) – Se potrivește cu un singur nivel de topic. De exemplu, `senzor/+/living` se va potrivi cu toate sub-topicurile, cum ar fi `senzor/temperatura/living` sau `senzor/umiditate/living`.
+- `#` (diez) – Se potrivește cu toate nivelurile de la acel punct în jos. De exemplu, `senzor/#` va include toate sub-topicurile din `senzor`, precum `senzor/temperatura/living`, `senzor/umiditate`, etc.
+
+## Avantajele Modelului Publish-Subscribe
+
+- **Decuplare între Dispozitive**: Publisherul și subscriberul nu trebuie să știe unul de altul; fiecare interacționează doar cu brokerul.
+- **Scalabilitate**: Un singur publisher poate trimite mesaje către un număr mare de subscriberi, ceea ce face ca modelul să fie foarte eficient în rețele mari.
+- **Flexibilitate**: Abonamentele și publicările se pot schimba dinamic, fără a afecta restul sistemului.
+
+## Cum MQTT5 functioneaza folosind pachete, in mod analog cu relatia de tip connect connact functioneaza si metodele de publish si subscribe, asadar:
+### Pachetul `SUBSCRIBE`
+![publish packet](https://github.com/TUIASI-AC-IoT/proiectrcp2024-2024-echipa-27/blob/main/img/subsisuback.png)
+Pachetul `SUBSCRIBE` este utilizat de un client pentru a se **abona** la unul sau mai multe topicuri pe broker. Prin acest pachet, clientul cere brokerului să îi trimită toate mesajele publicate pe topicurile respective.
+
+#### Structura Pachetului `SUBSCRIBE`:
+- **Fixed Header**: Conține tipul de pachet și setările pentru QoS (Quality of Service).
+- **Variable Header**:
+  - **Packet Identifier**: Un identificator unic al pachetului, utilizat pentru a corela `SUBSCRIBE` cu răspunsul `SUBACK`.
+- **Payload**:
+  - Lista topicurilor la care se abonează clientul, împreună cu nivelul QoS dorit pentru fiecare topic.
+
+### Pachetul `SUBACK`
+
+Pachetul `SUBACK` este răspunsul brokerului la cererea de abonare (`SUBSCRIBE`). Acesta confirmă dacă abonarea a fost realizată cu succes și specifică nivelul de QoS acceptat de broker pentru fiecare topic.
+
+#### Structura Pachetului `SUBACK`:
+- **Fixed Header**: Include tipul de pachet.
+- **Variable Header**:
+  - **Packet Identifier**: Același identificator de pachet trimis în `SUBSCRIBE`, pentru a corela răspunsul.
+- **Payload**:
+  - Lista nivelurilor de QoS acceptate pentru fiecare topic la care clientul s-a abonat. Dacă abonarea a eșuat pentru un anumit topic, este specificat un cod de eroare.
+
+### Pachetul `PUBLISH`
+![publish packet](https://github.com/TUIASI-AC-IoT/proiectrcp2024-2024-echipa-27/blob/main/img/publish.png)
+Pachetul `PUBLISH` este utilizat de un client pentru a **trimite un mesaj** către broker pe un anumit topic. Brokerul redirecționează mesajul către toți clienții abonați la acel topic.
+
+#### Structura Pachetului `PUBLISH`:
+- **Fixed Header**:
+  - **Packet Type**: Identifică pachetul ca fiind de tip `PUBLISH`.
+  - **QoS Level**: Definește calitatea serviciului pentru mesaj (0, 1 sau 2).
+  - **DUP Flag**: Indică dacă este o retransmisie a unui mesaj anterior.
+  - **Retain Flag**: Indică dacă mesajul ar trebui reținut de broker pentru a fi trimis noilor subscriberi.
+- **Variable Header**:
+  - **Topic Name**: Specifică topicul pe care este publicat mesajul.
+  - **Packet Identifier**: Folosit pentru mesajele QoS 1 și QoS 2 pentru a corela cu răspunsul.
+- **Payload**:
+  - Conținutul efectiv al mesajului.
+
+### Pachetul `PUBACK`
+![publish packet](https://github.com/TUIASI-AC-IoT/proiectrcp2024-2024-echipa-27/blob/main/img/puback.png)
+Pachetul `PUBACK` este folosit ca răspuns pentru un mesaj `PUBLISH` de tip QoS 1. Acest pachet confirmă brokerului că mesajul a fost primit de către client. QoS 1 asigură că mesajul este primit cel puțin o dată, iar `PUBACK` finalizează acest proces.
+
+#### Structura Pachetului `PUBACK`:
+- **Fixed Header**: Include tipul de pachet.
+- **Variable Header**:
+  - **Packet Identifier**: Același identificator de pachet ca în pachetul `PUBLISH`, pentru a corela răspunsul cu mesajul original.
+- **Payload**:
+  - În MQTT 5, poate conține un cod de motiv pentru a specifica succesul sau eșecul confirmării.
+
+
+---
+
+Acest model de comunicare face din MQTT o alegere populară pentru aplicațiile IoT, unde multe dispozitive au nevoie să schimbe date în mod eficient și organizat.
 
 ## Bibliografie
 
